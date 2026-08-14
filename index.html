@@ -161,6 +161,7 @@ button.small{ padding:6px 11px; font-size:12px; }
 }
 .toast.show{ opacity:1; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -221,9 +222,26 @@ button.small{ padding:6px 11px; font-size:12px; }
   <!-- ===================== JADWAL VIEW ===================== -->
   <section class="view" id="view-jadwal">
     <div class="card">
-      <strong>Jadwal Wawancara Tahun Ajaran 2026/2027</strong>
+      <strong>Jadwal Wawancara</strong>
       <div class="hint">Klik salah satu siswa untuk langsung mulai entri wawancara dengan nama, kelas, tanggal &amp; interviewer terisi otomatis dari jadwal. Kalau ada wawancara susulan (tanggal berubah), tanggal tetap bisa diedit manual di form.</div>
     </div>
+    <details class="section" id="jadwal-import-panel">
+      <summary><span class="letter-badge" style="background:var(--gold);">⇪</span><span>Import Jadwal dari Excel</span></summary>
+      <div class="section-body">
+        <div class="field">
+          <label class="qlabel">Label periode</label>
+          <input type="text" id="jadwal-import-periode" placeholder="misal: 2026/2027 atau Susulan Oktober 2026">
+          <div class="hint">Dipakai untuk membedakan dari jadwal periode lain — jadwal lama tidak akan terhapus/tertimpa.</div>
+        </div>
+        <div class="field">
+          <label class="qlabel">File Excel (format sama seperti jadwal wawancara: kolom No, Hari, Tanggal, Waktu, Nama Siswa, Kelas, Pewawancara, Cadangan)</label>
+          <input type="file" id="jadwal-import-file" accept=".xlsx,.xls">
+        </div>
+        <div class="btnrow">
+          <button class="primary small" id="btn-import-jadwal">Import Sekarang</button>
+        </div>
+      </div>
+    </details>
     <div class="statgrid">
       <div class="statcard"><div class="num" id="jadwal-stat-total">0</div><div class="lbl">Total Terjadwal</div></div>
       <div class="statcard"><div class="num" id="jadwal-stat-done">0</div><div class="lbl">Sudah Diwawancara</div></div>
@@ -231,12 +249,16 @@ button.small{ padding:6px 11px; font-size:12px; }
     </div>
     <div class="toolbar">
       <input type="text" id="jadwal-search-box" placeholder="Cari nama siswa...">
+      <select id="jadwal-filter-periode"><option value="">Semua periode</option></select>
       <select id="jadwal-filter-kelas"><option value="">Semua kelas</option></select>
       <select id="jadwal-filter-status">
         <option value="">Semua status</option>
         <option value="belum">Belum diwawancara</option>
         <option value="sudah">Sudah diwawancara</option>
       </select>
+    </div>
+    <div class="btnrow" style="margin-bottom:12px;">
+      <button class="danger small" id="btn-delete-periode">Hapus Periode yang Sedang Difilter</button>
     </div>
     <div class="stulist" id="jadwal-list"></div>
   </section>
@@ -457,8 +479,6 @@ const SECTIONS = [
 
 const ALL_SECTIONS = [IDENTITAS, ...SECTIONS];
 
-// Jadwal wawancara tahun ajaran 2026/2027 (dari file jadwal yang diunggah)
-const JADWAL_2026 = [{"no":1,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"08.00 - 09.00","nama":"AFIF ARKAPUTRA MAHARDIKA","kelas":"7A","interviewer":"Risma Nur Avita","cadangan":"Rullyasari Fahmi Idris"},{"no":2,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"08.00 - 09.00","nama":"AHMAD RIYADH SHALAHUDIN","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":3,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"09.15 - 10.15","nama":"AIRLANGGA ABIMANA PRATAMA","kelas":"7A","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":4,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"09.15 - 10.15","nama":"AL JAELAN JALALUDDIN RUMI KAHFI","kelas":"7A","interviewer":"Risma Nur Avita","cadangan":""},{"no":5,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"09.15 - 10.15","nama":"ARFIZZI MAHESWARA OCTAYUDA","kelas":"7A","interviewer":"Jibrel Attar","cadangan":""},{"no":6,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"10.30 - 11.30","nama":"ARIQO ARSYAD NARENDRA","kelas":"7A","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":7,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"10.30 - 11.30","nama":"ARYABIMA REZKY WIBOWO","kelas":"7A","interviewer":"Risma Nur Avita","cadangan":""},{"no":8,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"10.30 - 11.30","nama":"ATTALAH TRISTAN ALFATA","kelas":"7A","interviewer":"Jibrel Attar","cadangan":""},{"no":9,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"10.30 - 11.30","nama":"DASTAN ALHAFIZH IRAWAN","kelas":"7A","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":10,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"10.30 - 11.30","nama":"ERLANGGA SAVIER DOBYPUTRA","kelas":"7A","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":11,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"13.00 - 14.00","nama":"EVANO MIKAILA ALTAIR SUMINAR","kelas":"7A","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":12,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"13.00 - 14.00","nama":"FABIAN ATHAILLAH QADR","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":13,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"13.00 - 14.00","nama":"GAVIN KHALIF PUTRA GANDI","kelas":"7A","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":14,"hari":"Senin","tanggal":"2026-08-10","tanggalText":"10 Agustus 2026","waktu":"13.00 - 14.00","nama":"IBRAHIM RAQILLA SARFRAZ","kelas":"7A","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":15,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"08.00 - 09.00","nama":"KEANU ZAYYAN TRITAMA","kelas":"7A","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":16,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"08.00 - 09.00","nama":"JAVA AZZIKRA FITRIAN","kelas":"7A","interviewer":"Risma Nur Avita","cadangan":""},{"no":17,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"08.00 - 09.00","nama":"MOHAMMED NEYMAR ATHALLA","kelas":"7A","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":18,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD ALGHIFARY FAIZ SHIDQY","kelas":"7A","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":19,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD ARDIKHA NURHAMSYAH","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":20,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"09.15 - 10.15","nama":"AURORA AZZAHRA FITRIAN","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":"Jibrel Attar"},{"no":21,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD DZAKIY AJWAD","kelas":"7A","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":22,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD KEANU AMBAS SAJOANG","kelas":"7A","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":23,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"09.15 - 10.15","nama":"NAUFAL KENZIE MUGHNI","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":24,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"10.30 - 11.30","nama":"AYESHA KANAYA FITRIAN","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":"Jibrel Attar"},{"no":25,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"10.30 - 11.30","nama":"NIALL FAITH PRADANA","kelas":"7A","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":26,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"10.30 - 11.30","nama":"RADITYA SR WITJAKSANA","kelas":"7A","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":27,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"10.30 - 11.30","nama":"RAJENDRA MANDALA PUTRA RASYAVA","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":28,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"13.00 - 14.00","nama":"RAYFAN FAIZ LAHMADI","kelas":"7A","interviewer":"Risma Nur Avita","cadangan":"Erwin Kohar Ferdihananto"},{"no":29,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"13.00 - 14.00","nama":"RAZQA AZZAFRAN HILMAN","kelas":"7A","interviewer":"Jibrel Attar","cadangan":""},{"no":30,"hari":"Selasa","tanggal":"2026-08-11","tanggalText":"11 Agustus 2026","waktu":"13.00 - 14.00","nama":"RIZKY ANANTA NOEGROHO","kelas":"7A","interviewer":"Leny Arianti","cadangan":""},{"no":31,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"08.00 - 09.00","nama":"ABDULLAH MUMTAZ","kelas":"7B","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":32,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"08.00 - 09.00","nama":"ADMIRAL ZAFRAN FAHREZA SUMBAYMIDER","kelas":"7B","interviewer":"Risma Nur Avita","cadangan":""},{"no":33,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALARIC AZZAHIDI ARIEF HUSEIN","kelas":"7B","interviewer":"Jibrel Attar","cadangan":""},{"no":34,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"08.00 - 09.00","nama":"AMEER ZOLA KAISELVAN","kelas":"7B","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":35,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"08.00 - 09.00","nama":"ATHALLAH GHANI HAMZAH","kelas":"7B","interviewer":"Leny Arianti","cadangan":""},{"no":36,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"09.15 - 10.15","nama":"AZZA RAZANI AIRLANGGA","kelas":"7B","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":37,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"09.15 - 10.15","nama":"CALLISTO JONAS MANDALA HARYANTO","kelas":"7B","interviewer":"Jibrel Attar","cadangan":""},{"no":38,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"09.15 - 10.15","nama":"DEVAN RADITYA AL AZZAM","kelas":"7B","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":39,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"09.15 - 10.15","nama":"DZAKY ALVARO ALIPUTRA","kelas":"7B","interviewer":"Leny Arianti","cadangan":""},{"no":40,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"10.30 - 11.30","nama":"FATIH TARIM ATHARIZZ","kelas":"7B","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":41,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"10.30 - 11.30","nama":"GEAN ADHYASTA ADIKARA","kelas":"7B","interviewer":"Risma Nur Avita","cadangan":""},{"no":42,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"10.30 - 11.30","nama":"HAFIDZ IZHAR","kelas":"7B","interviewer":"Jibrel Attar","cadangan":""},{"no":43,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"10.30 - 11.30","nama":"HILAL ABIYU ALREY","kelas":"7B","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":44,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"10.30 - 11.30","nama":"HIROAZKA ABHINAYA RAYHAN","kelas":"7B","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":45,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"13.00 - 14.00","nama":"KEENE AL FATIH","kelas":"7B","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":46,"hari":"Rabu","tanggal":"2026-08-12","tanggalText":"12 Agustus 2026","waktu":"13.00 - 14.00","nama":"MIKAIL GIBRAN DANUARDI","kelas":"7B","interviewer":"Jibrel Attar","cadangan":""},{"no":47,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"08.00 - 09.00","nama":"MOCHAMAD FURQON","kelas":"7B","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":48,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD PRADITYA NANDANA","kelas":"7B","interviewer":"Risma Nur Avita","cadangan":""},{"no":49,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD RASYAD ABDULLAH","kelas":"7B","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":50,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD RAYHAN RAMDHANI SURYANSA","kelas":"7B","interviewer":"Leny Arianti","cadangan":""},{"no":51,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD YAZID AL QODRI","kelas":"7B","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":52,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"09.15 - 10.15","nama":"RADITHYA NARENDRA PUTRA MAULANA","kelas":"7B","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":53,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"09.15 - 10.15","nama":"ZAKY AKHTAR FIRDAUS","kelas":"7B","interviewer":"Leny Arianti","cadangan":""},{"no":54,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"10.30 - 11.30","nama":"ADITYA DHIAURRAHMAN ABRARKAUTHAR","kelas":"7C","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":55,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"10.30 - 11.30","nama":"AHMAD BINTANG ADITYA","kelas":"7C","interviewer":"Risma Nur Avita","cadangan":""},{"no":56,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"10.30 - 11.30","nama":"AL BATARA NOERHARYADI","kelas":"7C","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":57,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"10.30 - 11.30","nama":"ALARIC VALA MIKHAIL","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":58,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"10.30 - 11.30","nama":"ALKHALIFI ABIMANA KURNIAWAN","kelas":"7C","interviewer":"Leny Arianti","cadangan":""},{"no":59,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"13.00 - 14.00","nama":"ALVARO NIZAM RAMADHAN","kelas":"7C","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":60,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"13.00 - 14.00","nama":"AXEL ARZIKI OTADAN","kelas":"7C","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":61,"hari":"Kamis","tanggal":"2026-08-13","tanggalText":"13 Agustus 2026","waktu":"13.00 - 14.00","nama":"AZIMO PERDANA AKBAR","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":62,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"07.30 - 08.30","nama":"DANISH RAFA RAMAZAN AL AZHAR","kelas":"7C","interviewer":"Jibrel Attar","cadangan":"Rullyasari Fahmi Idris"},{"no":63,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"08.45 - 09. 45","nama":"EL KENZIE ICHIROU BUHOY","kelas":"7C","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":64,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"08.45 - 09. 45","nama":"FAIREL ATHARIZZ GHATHFAAN AMIRUDIN","kelas":"7C","interviewer":"Jibrel Attar","cadangan":""},{"no":65,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"10.00 - 11.00","nama":"FAQIH KHAIRI TAMIMI","kelas":"7C","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":66,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"10.00 - 11.00","nama":"HARMONI BUMI","kelas":"7C","interviewer":"Jibrel Attar","cadangan":""},{"no":67,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"10.00 - 11.00","nama":"JADEN PRATOMO","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":68,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"13.15 - 14.15","nama":"KALINGGA MAHESWARA HARIONO","kelas":"7C","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":69,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"13.15 - 14.15","nama":"MOCHAMMAD ZIDAN BAIHAQIE","kelas":"7C","interviewer":"Jibrel Attar","cadangan":""},{"no":70,"hari":"Jumat","tanggal":"2026-08-14","tanggalText":"14 Agustus 2026","waktu":"13.15 - 14.15","nama":"MUHAMMAD BAGAS AHZA ADHYASTHA","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":71,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD IBRAM ABIDIN","kelas":"7C","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":72,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD IMAM MUHADI","kelas":"7C","interviewer":"Risma Nur Avita","cadangan":""},{"no":73,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD NAUFAL AZZAM ZAAHIRUL HAQ","kelas":"7C","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":74,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD RASYID RIDHA","kelas":"7C","interviewer":"Jibrel Attar","cadangan":""},{"no":75,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD RUNAKO SAKHI GUPTARA","kelas":"7C","interviewer":"Leny Arianti","cadangan":""},{"no":76,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"09.15 - 10.15","nama":"RAISA RAMADHANI SUBAGIO","kelas":"7G","interviewer":"Jibrel Attar","cadangan":"Risma Nur Avita"},{"no":77,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD SEAN INSAN FAID","kelas":"7C","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":78,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD SYAQIL GILANG PERMANA PUTRA IWANSYAH","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":79,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"09.15 - 10.15","nama":"NATHAN ALBY ALFARIZI","kelas":"7C","interviewer":"Leny Arianti","cadangan":""},{"no":80,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"10.30 - 11.30","nama":"RAIHAN RAMADHAN SUBAGIO","kelas":"7C","interviewer":"Jibrel Attar","cadangan":"Risma Nur Avita"},{"no":81,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"10.30 - 11.30","nama":"NOA ZAID PARINDURI","kelas":"7C","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":82,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"10.30 - 11.30","nama":"VERDA AZKA ENZO ARDIFWAN","kelas":"7C","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":83,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"10.30 - 11.30","nama":"ABDILLAH FADHIL","kelas":"7D","interviewer":"Leny Arianti","cadangan":""},{"no":84,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"13.00 - 14.00","nama":"ABRAHAM KHALEEF MALIK AL KAUTSAR","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":85,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"13.00 - 14.00","nama":"ADRIAN QAYS NAQIB","kelas":"7D","interviewer":"Jibrel Attar","cadangan":""},{"no":86,"hari":"Selasa","tanggal":"2026-08-18","tanggalText":"18 Agustus 2026","waktu":"13.00 - 14.00","nama":"AKMAL LUCKY PASHA","kelas":"7D","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":87,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALARIC RISYAD ERABBANI","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":88,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALARIC ZHAFRAN ALKHALIFI","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":""},{"no":89,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALDRIC ANINDYAPRAJA MASCA","kelas":"7D","interviewer":"Jibrel Attar","cadangan":""},{"no":90,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"09.15 - 10.15","nama":"AMRAN NIZAR BALAFIF","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":91,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"09.15 - 10.15","nama":"ARJUNA DIMAS HABIBI","kelas":"7D","interviewer":"Jibrel Attar","cadangan":""},{"no":92,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"09.15 - 10.15","nama":"ATHAYA RIZAL DARMAWAN","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":93,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"10.30 - 11.30","nama":"AZRIEL OKTOVIAN PELALU","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":94,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"10.30 - 11.30","nama":"DANISH AL FATIH FATHONI","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":""},{"no":95,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"10.30 - 11.30","nama":"DIWANSA AHNAF WINTOARIE","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":96,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"13.00 - 14.00","nama":"FARELL ZAYED ATHALLAH","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":97,"hari":"Rabu","tanggal":"2026-08-19","tanggalText":"19 Agustus 2026","waktu":"13.00 - 14.00","nama":"GIBRAN GHANI AL- WAFI MARBUN","kelas":"7D","interviewer":"Jibrel Attar","cadangan":""},{"no":98,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"08.00 - 09.00","nama":"HARITH SHALAHUDDIN KHALEEF","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":99,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"08.00 - 09.00","nama":"IZZUDDIN FALAHI ARSYAD","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":""},{"no":100,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"09.15 - 10.15","nama":"KEENAN ATTAYA PERMANA","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":101,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"09.15 - 10.15","nama":"LIONEL ARJUNA WIPUTRA","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":102,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"10.30 - 11.30","nama":"MOCHAMMAD ADHYASTA ALFIANDRA","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":103,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"10.30 - 11.30","nama":"MUHAMMAD ARKANA GANENDRA ALGHAZY","kelas":"7D","interviewer":"Risma Nur Avita","cadangan":""},{"no":104,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"10.30 - 11.30","nama":"MUHAMMAD MIKHAIL RAFA ANSHARI","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":105,"hari":"Kamis","tanggal":"2026-08-20","tanggalText":"20 Agustus 2026","waktu":"13.00 - 14.00","nama":"MUHAMMAD RAIHAN AR RASYID RESMANA","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":"Risma Nur Avita"},{"no":106,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"07.30 - 08.30","nama":"MUHAMMAD RIZKY RAHARDIAN","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":"Jibrel Attar"},{"no":107,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"08.45 - 09. 45","nama":"NAUFAL RAFIF RAMADHAN","kelas":"7D","interviewer":"Jibrel Attar","cadangan":"Kharis Swara"},{"no":108,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"08.45 - 09. 45","nama":"RADINATA PADMASALIM","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":109,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"10.00 - 11.00","nama":"RAMAJEVA ADWA HANJAYANI","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":110,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"10.00 - 11.00","nama":"YUDHA RIZKY HABIBI","kelas":"7D","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":111,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"13.15 - 14.15","nama":"MUHAMMAD ZIDAN ANDRIANO WIBISONO","kelas":"7D","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":112,"hari":"Jumat","tanggal":"2026-08-21","tanggalText":"21 Agustus 2026","waktu":"13.15 - 14.15","nama":"ABHIRAMA SATRIYA PRASETIO","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":""},{"no":113,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"08.00 - 09.00","nama":"ABRYZAM ASHRAF ZULKARNAIN","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":"Rullyasari Fahmi Idris"},{"no":114,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"08.00 - 09.00","nama":"AL FAWZA ZHAVRAN WIDYSTA","kelas":"7E","interviewer":"Leny Arianti","cadangan":""},{"no":115,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"09.15 - 10.15","nama":"ALARIC AKBAR ZUBAIR","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":116,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"09.15 - 10.15","nama":"ANDRA AL-FARIZI WICAKSONO","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":""},{"no":117,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"09.15 - 10.15","nama":"ARKAN HIBBAN WIJAYA","kelas":"7E","interviewer":"Leny Arianti","cadangan":""},{"no":118,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"10.30 - 11.30","nama":"ARSYAD AZHARIE ARIEF ATHAYA","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":119,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"10.30 - 11.30","nama":"ASWIN ATTAYA NURDIN","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":""},{"no":120,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"10.30 - 11.30","nama":"ATHAYA FITRIAN DAMAR AL KHALIFI","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":121,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"10.30 - 11.30","nama":"DANISH AHZA ADITYA","kelas":"7E","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":122,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"10.30 - 11.30","nama":"DANISH PUTRA SETIAWAN","kelas":"7E","interviewer":"Leny Arianti","cadangan":""},{"no":123,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"13.00 - 14.00","nama":"FAHRIAN KAUTSAR RASYID","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":124,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"13.00 - 14.00","nama":"FAIZ AMMAR FAHDIKE","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":125,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"13.00 - 14.00","nama":"M. AKMA  ATHAR LATIF","kelas":"7E","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":126,"hari":"Senin","tanggal":"2026-08-24","tanggalText":"24 Agustus 2026","waktu":"13.00 - 14.00","nama":"MOHAMMAD XAVIEREYNO SHAHRIZA","kelas":"7E","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":127,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD AQIL AL HAFID RAMADHAN","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":128,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD GHANA AL MUHARRAM","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":""},{"no":129,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD AZZAM HAKIM","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":130,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD DZAKIY AL BAIHAQI","kelas":"7E","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":131,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"08.00 - 09.00","nama":"MUHAMMAD SHANDIAGA HADIWIJAYA","kelas":"7E","interviewer":"Leny Arianti","cadangan":""},{"no":132,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"09.15 - 10.15","nama":"GHINA QONITA KHAIRUNNISA","kelas":"7I","interviewer":"Risma Nur Avita","cadangan":"Rullyasari Fahmi Idris"},{"no":133,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD ZAYN KAFFI ASSYAIRAZY","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":134,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD ZHAFRAN RABBANI","kelas":"7E","interviewer":"Kharis Swara","cadangan":""},{"no":135,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"09.15 - 10.15","nama":"MUHAMMAD ZHECHO SOEKARNOPUTRO","kelas":"7E","interviewer":"Leny Arianti","cadangan":""},{"no":136,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"10.30 - 11.30","nama":"NUR MUHAMMAD FAKHRURROZI","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":137,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"10.30 - 11.30","nama":"OKI FARIEL FEBRYANTARA","kelas":"7E","interviewer":"Risma Nur Avita","cadangan":""},{"no":138,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"10.30 - 11.30","nama":"QIZOAXEL ALMAIR MADAVIVA","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":139,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"10.30 - 11.30","nama":"RAZIQ SINAN LAAL BARRAQIE","kelas":"7E","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":140,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"10.30 - 11.30","nama":"SULTAN ALBARRA PUTRA ASMARA","kelas":"7E","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":141,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"13.00 - 14.00","nama":"TANAZZALU ILMAN NAAFI","kelas":"7E","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":142,"hari":"Rabu","tanggal":"2026-08-26","tanggalText":"26 Agustus 2026","waktu":"13.00 - 14.00","nama":"ZHAYDAN MELVIN ADYOVI","kelas":"7E","interviewer":"Jibrel Attar","cadangan":""},{"no":143,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"08.00 - 09.00","nama":"ABIA ALIARAHMA ADWITIYA","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":"Kharis Swara"},{"no":144,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"08.00 - 09.00","nama":"ADZKIYA ZAULA PUTRI HADYAN","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":""},{"no":145,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALLANA KIMIYO CALLULLA","kelas":"7F","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":146,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"08.00 - 09.00","nama":"ALYAA FARAH AZZAHRA","kelas":"7F","interviewer":"Leny Arianti","cadangan":""},{"no":147,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"09.15 - 10.15","nama":"ANNISA TITAN HEPPINN","kelas":"7F","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":148,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"09.15 - 10.15","nama":"AQEELA ZAHRA NADHIFA","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":149,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"09.15 - 10.15","nama":"AQILA SALMA KHAIRUNNISA","kelas":"7F","interviewer":"Leny Arianti","cadangan":""},{"no":150,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"10.30 - 11.30","nama":"ARDELIA RACHELA JASMINE","kelas":"7F","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":151,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"10.30 - 11.30","nama":"ASHILLA AZKYA RAIA","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":""},{"no":152,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"10.30 - 11.30","nama":"BILQIS LABIBA AZAHRA ROFYANA","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":153,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"10.30 - 11.30","nama":"BINAR PELANGI ZEA ARNIDA","kelas":"7F","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":154,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"10.30 - 11.30","nama":"ELMIRA MINASHOFA FIRMANSYAH","kelas":"7F","interviewer":"Leny Arianti","cadangan":""},{"no":155,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"13.00 - 14.00","nama":"FLORA ANINDHITA SYAKIRA","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":156,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"13.00 - 14.00","nama":"ILLONA SABIA KALYSSA","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":157,"hari":"Kamis","tanggal":"2026-08-27","tanggalText":"27 Agustus 2026","waktu":"13.00 - 14.00","nama":"JELITA AZKA FARANNISA","kelas":"7F","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":158,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"07.30 - 08.30","nama":"KAYLA AISHA PRAKOSO","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":"Jibrel Attar"},{"no":159,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"08.45 - 09. 45","nama":"KEYLA NAYRA ZAREEN FIRSADA","kelas":"7F","interviewer":"Jibrel Attar","cadangan":"Kharis Swara"},{"no":160,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"08.45 - 09. 45","nama":"LUELLA MEHERUNISSA PUTRI MATTANETE","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":161,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"10.00 - 11.00","nama":"MIKAYLA NAIRA MAHESWARI","kelas":"7F","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":162,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"10.00 - 11.00","nama":"MIREILLE SHADEEYAH ARDIYANTO","kelas":"7F","interviewer":"Jibrel Attar","cadangan":""},{"no":163,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"10.00 - 11.00","nama":"RAISSA ARWENDYA DANEETA","kelas":"7F","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":164,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"13.15 - 14.15","nama":"RALINE MARITZA HERDANI","kelas":"7F","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":165,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"13.15 - 14.15","nama":"ROSSALINE NUR MARWAH AULIYAH","kelas":"7F","interviewer":"Jibrel Attar","cadangan":""},{"no":166,"hari":"Jumat","tanggal":"2026-08-28","tanggalText":"28 Agustus 2026","waktu":"13.15 - 14.15","nama":"SHAULA JASMIER ZAUNGA","kelas":"7F","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":167,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"08.00 - 09.00","nama":"SHIREEN NAJMU DIENA","kelas":"7F","interviewer":"Risma Nur Avita","cadangan":"Rullyasari Fahmi Idris"},{"no":168,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"08.00 - 09.00","nama":"ZHARIFAH ADIBA MALEEKA HAKIKI","kelas":"7F","interviewer":"Leny Arianti","cadangan":""},{"no":169,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"09.15 - 10.15","nama":"AFRAYIN ALANNA","kelas":"7G","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":170,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"09.15 - 10.15","nama":"AISYAH HARIS PUSPITASARI","kelas":"7G","interviewer":"Risma Nur Avita","cadangan":""},{"no":171,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"09.15 - 10.15","nama":"AISYAH KIRANA PRIMADITA","kelas":"7G","interviewer":"Leny Arianti","cadangan":""},{"no":172,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"10.30 - 11.30","nama":"AISYAH NADHIVA NIDA BUANA","kelas":"7G","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":173,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"10.30 - 11.30","nama":"ALESHA AZRA ATHIYAH","kelas":"7G","interviewer":"Risma Nur Avita","cadangan":""},{"no":174,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"10.30 - 11.30","nama":"ALYA PUTERI HAFIZAH","kelas":"7G","interviewer":"Jibrel Attar","cadangan":""},{"no":175,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"10.30 - 11.30","nama":"AULIA ALFARINI AMIN","kelas":"7G","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":176,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"10.30 - 11.30","nama":"AZWA AMEERA AZZAHRA","kelas":"7G","interviewer":"Leny Arianti","cadangan":""},{"no":177,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"13.00 - 14.00","nama":"FARANNISA LINTANG SAMUDRA","kelas":"7G","interviewer":"Kharis Swara","cadangan":"Leny Arianti"},{"no":178,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"13.00 - 14.00","nama":"FIONNA AINUN HANIFAH","kelas":"7G","interviewer":"Jibrel Attar","cadangan":""},{"no":179,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"13.00 - 14.00","nama":"HANNAN SHALIMAR RIFQY","kelas":"7G","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":180,"hari":"Senin","tanggal":"2026-08-31","tanggalText":"31 Agustus 2026","waktu":"13.00 - 14.00","nama":"I GUSTI AYU NIRA DIANTI RANUH","kelas":"7G","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":181,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"08.00 - 09.00","nama":"KHANSA NAYRA SATRIANING ANANTA","kelas":"7G","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":182,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"08.00 - 09.00","nama":"MARSHA NARESWARY","kelas":"7G","interviewer":"Risma Nur Avita","cadangan":""},{"no":183,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"08.00 - 09.00","nama":"MICHELLE FELICIA DEVANZA","kelas":"7G","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":184,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"08.00 - 09.00","nama":"NAFLA QONITA ZAHIYA","kelas":"7G","interviewer":"Jibrel Attar","cadangan":""},{"no":185,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"08.00 - 09.00","nama":"NAYSABRINA AURORA PUTRI HEDERA","kelas":"7G","interviewer":"Leny Arianti","cadangan":""},{"no":186,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"09.15 - 10.15","nama":"PUTRI SALSABILA KHAIRUN NISA","kelas":"7G","interviewer":"Risma Nur Avita","cadangan":"Erwin Kohar Ferdihananto"},{"no":187,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"09.15 - 10.15","nama":"RAIDA HALIMAH PUTRI IDAMAN JASA","kelas":"7G","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":188,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"09.15 - 10.15","nama":"SABRINA RAISHA AZZAHRA KURNIAWAN","kelas":"7G","interviewer":"Jibrel Attar","cadangan":""},{"no":189,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"09.15 - 10.15","nama":"SATYA HANIFA ADIGUNA PUTRI","kelas":"7G","interviewer":"Leny Arianti","cadangan":""},{"no":190,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"10.30 - 11.30","nama":"AISYAH GADI","kelas":"7H","interviewer":"Jibrel Attar","cadangan":"Risma Nur Avita"},{"no":191,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"10.30 - 11.30","nama":"ALIKA JUTI PUTRI SHALIHA","kelas":"7H","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":192,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"10.30 - 11.30","nama":"ALISHA AZZALEA PUTRI HARTONO","kelas":"7H","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":193,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"10.30 - 11.30","nama":"ALMIRA IZZATI ROSYADI","kelas":"7H","interviewer":"Leny Arianti","cadangan":""},{"no":194,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"13.00 - 14.00","nama":"AMIRA AISYAH","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":195,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"13.00 - 14.00","nama":"ANEIRA MALVARETTA OBSATRYA","kelas":"7H","interviewer":"Jibrel Attar","cadangan":""},{"no":196,"hari":"Selasa","tanggal":"2026-09-01","tanggalText":"1 September 2026","waktu":"13.00 - 14.00","nama":"AZKAYLA ZIANKA SETYAWAN","kelas":"7H","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":197,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"08.00 - 09.00","nama":"BELVA QUINN ALHAZENA","kelas":"7H","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":198,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"08.00 - 09.00","nama":"DAYNDRA AUNI HADIWIJAYA","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":""},{"no":199,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"08.00 - 09.00","nama":"DEVANIA PUTRI HARDIYANTO","kelas":"7H","interviewer":"Jibrel Attar","cadangan":""},{"no":200,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"08.00 - 09.00","nama":"HASNA RASIKHAH","kelas":"7H","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":201,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"08.00 - 09.00","nama":"JIHAN THALITA HUMAIRAH","kelas":"7H","interviewer":"Leny Arianti","cadangan":""},{"no":202,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"09.15 - 10.15","nama":"NAYLI SYIFA EL RAHMAH","kelas":"7I","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":203,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"09.15 - 10.15","nama":"KHAIRA AISYA KAMILA","kelas":"7H","interviewer":"Jibrel Attar","cadangan":""},{"no":204,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"09.15 - 10.15","nama":"KHANSA JAZILAH MALIK","kelas":"7H","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":205,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"09.15 - 10.15","nama":"KIANA MALIKA SIREGAR","kelas":"7H","interviewer":"Leny Arianti","cadangan":""},{"no":206,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"10.30 - 11.30","nama":"MAULYDA RIZKYA AL AZKA","kelas":"7H","interviewer":"Leny Arianti","cadangan":"Kharis Swara"},{"no":207,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"10.30 - 11.30","nama":"NAYLA FARAH EL RAHMAH","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":""},{"no":208,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"10.30 - 11.30","nama":"MIKHAYLA SAFA PUTRI RIYADI","kelas":"7H","interviewer":"Jibrel Attar","cadangan":""},{"no":209,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"10.30 - 11.30","nama":"NABILAH AISHA DARA ASHADINANTRI","kelas":"7H","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":210,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"10.30 - 11.30","nama":"NUR AMIRAH PUTRI SIREGAR","kelas":"7H","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":211,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"13.00 - 14.00","nama":"QUINZA BELVANIA AZYURI","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":"Kharis Swara"},{"no":212,"hari":"Rabu","tanggal":"2026-09-02","tanggalText":"2 September 2026","waktu":"13.00 - 14.00","nama":"REISYA ALANI TADMAINNA","kelas":"7H","interviewer":"Jibrel Attar","cadangan":""},{"no":213,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"08.00 - 09.00","nama":"RINAD ABDUL HALIM BAHMID","kelas":"7H","interviewer":"Kharis Swara","cadangan":"Rullyasari Fahmi Idris"},{"no":214,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"08.00 - 09.00","nama":"SAHILA ABDULLAH MACHDAN","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":""},{"no":215,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"08.00 - 09.00","nama":"SEKAR KIRANA PUTRI ANURAGA","kelas":"7H","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":216,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"08.00 - 09.00","nama":"SHAZIA ADRIKALIZA","kelas":"7H","interviewer":"Leny Arianti","cadangan":""},{"no":217,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"09.15 - 10.15","nama":"SORAYA ANGGRAENI HERMAWAN","kelas":"7H","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":218,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"09.15 - 10.15","nama":"ZAHRA ADZKIYA KINANTHI","kelas":"7H","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":219,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"09.15 - 10.15","nama":"ADZKIYA DZARA SYAKIRA","kelas":"7I","interviewer":"Kharis Swara","cadangan":""},{"no":220,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"10.30 - 11.30","nama":"AISHA FAJRIA SISWANTO","kelas":"7I","interviewer":"Kharis Swara","cadangan":"Jibrel Attar"},{"no":221,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"10.30 - 11.30","nama":"AISHA PUTRI NARESHWARI","kelas":"7I","interviewer":"Risma Nur Avita","cadangan":""},{"no":222,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"10.30 - 11.30","nama":"ALUNA YUMNA FAHIRA","kelas":"7I","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":223,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"10.30 - 11.30","nama":"ANINDYA SEKAR NARESWARI","kelas":"7I","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":224,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"10.30 - 11.30","nama":"AQILAH DHIBA ERLINASARI","kelas":"7I","interviewer":"Leny Arianti","cadangan":""},{"no":225,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"13.00 - 14.00","nama":"ARMIRA JAHRA MILAN RAMADHANI","kelas":"7I","interviewer":"Risma Nur Avita","cadangan":"Leny Arianti"},{"no":226,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"13.00 - 14.00","nama":"AYUNDA AISHA  KHAIRINA","kelas":"7I","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":227,"hari":"Kamis","tanggal":"2026-09-03","tanggalText":"3 September 2026","waktu":"13.00 - 14.00","nama":"DAPHNE MARITZA PRASETYO","kelas":"7I","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":228,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"07.30 - 08.30","nama":"ELINA SHAMITA PRAMESWARI","kelas":"7I","interviewer":"Rullyasari Fahmi Idris","cadangan":"Jibrel Attar"},{"no":229,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"08.45 - 09. 45","nama":"FAIRUZ AIESHA ARIPRABOWO","kelas":"7I","interviewer":"Jibrel Attar","cadangan":"Kharis Swara"},{"no":230,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"08.45 - 09. 45","nama":"FAWNIA LUBENA HARTOYO","kelas":"7I","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":231,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"10.00 - 11.00","nama":"GHEA ANINDYA AZHARA SETYAWAN","kelas":"7I","interviewer":"Kharis Swara","cadangan":"Erwin Kohar Ferdihananto"},{"no":232,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"10.00 - 11.00","nama":"KHADIJAH SAFA ANINDYA","kelas":"7I","interviewer":"Jibrel Attar","cadangan":""},{"no":233,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"10.00 - 11.00","nama":"MAZAYA KHAIRUNNISA","kelas":"7I","interviewer":"Rullyasari Fahmi Idris","cadangan":""},{"no":234,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"13.15 - 14.15","nama":"QINANTI SEKARING ANDINY","kelas":"7I","interviewer":"Kharis Swara","cadangan":"Risma Nur Avita"},{"no":235,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"13.15 - 14.15","nama":"SYIFALIA ALISHA PUTRI","kelas":"7I","interviewer":"Jibrel Attar","cadangan":""},{"no":236,"hari":"Jumat","tanggal":"2026-09-04","tanggalText":"4 September 2026","waktu":"13.15 - 14.15","nama":"TANAYA RISMAULIDYA RATU LATIVA","kelas":"7I","interviewer":"Erwin Kohar Ferdihananto","cadangan":""},{"no":237,"hari":"Senin","tanggal":"2026-09-07","tanggalText":"7 September 2026","waktu":"08.00 - 09.00","nama":"ZEA SHAQUILA DJOJO","kelas":"7I","interviewer":"Risma Nur Avita","cadangan":"Rullyasari Fahmi Idris"}];
 
 /* ============================================================
    STATE
@@ -967,47 +987,70 @@ async function exportCsv(){
    NAV / UI GLUE
    ============================================================ */
 /* ============================================================
-   JADWAL 2026
+   JADWAL WAWANCARA (dari Google Sheets, bisa berisi banyak periode)
    ============================================================ */
 let jadwalDoneKey = null; // Set berisi "nama|kelas" lower-case yang sudah punya entri wawancara
+let cachedJadwal = null;
 
 function normKey(nama, kelas){
   return (nama||'').trim().toLowerCase() + '|' + (kelas||'').trim().toLowerCase();
 }
 
+async function loadJadwal(force){
+  if(cachedJadwal && !force) return cachedJadwal;
+  cachedJadwal = await apiGet('jadwal');
+  return cachedJadwal;
+}
+
 async function renderJadwal(){
   const container = document.getElementById('jadwal-list');
-  container.innerHTML = `<div class="empty">Memuat status wawancara...</div>`;
+  container.innerHTML = `<div class="empty">Memuat jadwal &amp; status wawancara...</div>`;
 
-  // ambil daftar yang sudah tersimpan di Sheets untuk menandai status "sudah diwawancara"
+  let jadwal;
+  try{
+    jadwal = await loadJadwal(true);
+  }catch(e){
+    container.innerHTML = `<div class="empty"><div class="big">⚠️</div>Gagal memuat jadwal: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+
   try{
     const list = await loadList(false);
     jadwalDoneKey = new Set(list.map(x=>normKey(x.nama, x.kelas)));
   }catch(e){
-    jadwalDoneKey = new Set(); // kalau gagal memuat, tetap tampilkan jadwal tanpa status
+    jadwalDoneKey = new Set();
   }
 
-  const kelasSet = Array.from(new Set(JADWAL_2026.map(j=>j.kelas).filter(Boolean))).sort();
+  const kelasSet = Array.from(new Set(jadwal.map(j=>j.kelas).filter(Boolean))).sort();
   const kelasSel = document.getElementById('jadwal-filter-kelas');
   const curKelas = kelasSel.value;
   kelasSel.innerHTML = '<option value="">Semua kelas</option>' + kelasSet.map(k=>`<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
   kelasSel.value = curKelas;
 
-  const doneCount = JADWAL_2026.filter(j=>jadwalDoneKey.has(normKey(j.nama,j.kelas))).length;
-  document.getElementById('jadwal-stat-total').textContent = JADWAL_2026.length;
+  const periodeSet = Array.from(new Set(jadwal.map(j=>j.periode).filter(Boolean))).sort();
+  const periodeSel = document.getElementById('jadwal-filter-periode');
+  const curPeriode = periodeSel.value;
+  periodeSel.innerHTML = '<option value="">Semua periode</option>' + periodeSet.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+  periodeSel.value = curPeriode;
+
+  const doneCount = jadwal.filter(j=>jadwalDoneKey.has(normKey(j.nama,j.kelas))).length;
+  document.getElementById('jadwal-stat-total').textContent = jadwal.length;
   document.getElementById('jadwal-stat-done').textContent = doneCount;
-  document.getElementById('jadwal-stat-remain').textContent = JADWAL_2026.length - doneCount;
+  document.getElementById('jadwal-stat-remain').textContent = jadwal.length - doneCount;
 
   renderJadwalList();
 }
 
 function renderJadwalList(){
+  if(!cachedJadwal) return;
   const q = document.getElementById('jadwal-search-box').value.trim().toLowerCase();
   const kelas = document.getElementById('jadwal-filter-kelas').value;
   const status = document.getElementById('jadwal-filter-status').value;
+  const periode = document.getElementById('jadwal-filter-periode').value;
 
-  let rows = JADWAL_2026.filter(j=>{
+  let rows = cachedJadwal.filter(j=>{
     if(kelas && j.kelas !== kelas) return false;
+    if(periode && j.periode !== periode) return false;
     if(q && !j.nama.toLowerCase().includes(q)) return false;
     const done = jadwalDoneKey && jadwalDoneKey.has(normKey(j.nama, j.kelas));
     if(status === 'belum' && done) return false;
@@ -1017,34 +1060,34 @@ function renderJadwalList(){
 
   const container = document.getElementById('jadwal-list');
   if(rows.length === 0){
-    container.innerHTML = `<div class="empty"><div class="big">🗓️</div>Tidak ada jadwal yang cocok dengan filter.</div>`;
+    container.innerHTML = `<div class="empty"><div class="big">🗓️</div>${cachedJadwal.length===0?'Belum ada jadwal. Import file Excel dulu di panel atas.':'Tidak ada jadwal yang cocok dengan filter.'}</div>`;
     return;
   }
 
   container.innerHTML = rows.map(j=>{
     const done = jadwalDoneKey && jadwalDoneKey.has(normKey(j.nama, j.kelas));
-    return `<div class="surow" data-no="${j.no}">
+    return `<div class="surow" data-no="${j.no}" data-periode="${escapeHtml(j.periode)}">
       <div class="surow-top">
         <div>
           <div class="name">${escapeHtml(j.nama)}</div>
-          <div class="meta">${escapeHtml(j.kelas)} • ${escapeHtml(j.hari||'')}, ${escapeHtml(j.tanggalText||'')} • ${escapeHtml(j.waktu||'')}</div>
+          <div class="meta">${escapeHtml(j.kelas)} • ${escapeHtml(j.hari||'')}, ${escapeHtml(j.tanggalText||'')} • ${escapeHtml(j.waktu||'')} • <em>${escapeHtml(j.periode||'')}</em></div>
           <div class="meta">Pewawancara: ${escapeHtml(j.interviewer||'-')}${j.cadangan?' · Cadangan: '+escapeHtml(j.cadangan):''}</div>
         </div>
         <span class="badge ${done?'B':'na'}">${done?'Sudah':'Belum'}</span>
       </div>
       <div class="btnrow" style="margin-top:9px;">
-        <button class="secondary small" data-act="isi" data-no="${j.no}">${done?'Isi Data Lagi':'Mulai Wawancara'}</button>
+        <button class="secondary small" data-act="isi" data-no="${j.no}" data-periode="${escapeHtml(j.periode)}">${done?'Isi Data Lagi':'Mulai Wawancara'}</button>
       </div>
     </div>`;
   }).join('');
 
   container.querySelectorAll('button[data-act="isi"]').forEach(b=>{
-    b.addEventListener('click', ()=> startFromJadwal(Number(b.dataset.no)));
+    b.addEventListener('click', ()=> startFromJadwal(Number(b.dataset.no), b.dataset.periode));
   });
 }
 
-function startFromJadwal(no){
-  const j = JADWAL_2026.find(x=>x.no===no);
+function startFromJadwal(no, periode){
+  const j = cachedJadwal.find(x=>x.no===no && x.periode===periode);
   if(!j) return;
   formState = {
     identitas: {
@@ -1062,9 +1105,134 @@ function startFromJadwal(no){
   showToast('Form terisi dari jadwal. Ubah tanggal bila ini wawancara susulan.');
 }
 
+/* ---- Import Excel jadwal ---- */
+const BULAN_MAP = {januari:1,februari:2,maret:3,april:4,mei:5,juni:6,juli:7,agustus:8,september:9,oktober:10,november:11,desember:12};
+const BULAN_NAMES = Object.keys(BULAN_MAP);
+
+function parseTanggalIndo(raw){
+  if(raw == null || raw === '') return {iso:'', text:''};
+  if(raw instanceof Date){
+    const bln = BULAN_NAMES[raw.getMonth()];
+    const text = `${raw.getDate()} ${bln.charAt(0).toUpperCase()+bln.slice(1)} ${raw.getFullYear()}`;
+    const iso = `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`;
+    return {iso, text};
+  }
+  const s = String(raw).trim();
+  const m = s.match(/^(\d+)\s+(\w+)\s+(\d{4})/);
+  if(m){
+    const d = m[1], blnName = m[2].toLowerCase(), y = m[3];
+    const blnNum = BULAN_MAP[blnName];
+    if(blnNum) return {iso:`${y}-${String(blnNum).padStart(2,'0')}-${String(d).padStart(2,'0')}`, text:s};
+  }
+  return {iso:'', text:s};
+}
+
+function cleanName(s){
+  if(!s) return '';
+  return String(s).split(',')[0].trim();
+}
+
+function parseJadwalWorkbook(workbook){
+  // cari sheet 'All' kalau ada, kalau tidak pakai sheet pertama
+  const sheetName = workbook.SheetNames.includes('All') ? 'All' : workbook.SheetNames[0];
+  const ws = workbook.Sheets[sheetName];
+  const data = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+
+  // cari baris header (mengandung 'No' dan 'Nama Siswa')
+  let headerRowIdx = -1, colMap = {};
+  for(let i=0;i<data.length;i++){
+    const row = data[i].map(c=> (c==null?'':String(c).trim().toLowerCase()));
+    if(row.includes('no') && row.some(c=>c.includes('nama siswa'))){
+      headerRowIdx = i;
+      row.forEach((c,idx)=>{
+        if(c === 'no') colMap.no = idx;
+        else if(c === 'hari') colMap.hari = idx;
+        else if(c === 'tanggal') colMap.tanggal = idx;
+        else if(c === 'waktu') colMap.waktu = idx;
+        else if(c.includes('nama siswa')) colMap.nama = idx;
+        else if(c === 'kelas') colMap.kelas = idx;
+        else if(c.includes('pewawancara')) colMap.interviewer = idx;
+        else if(c.includes('cadangan')) colMap.cadangan = idx;
+      });
+      break;
+    }
+  }
+  if(headerRowIdx === -1 || colMap.nama == null){
+    throw new Error('Format file tidak dikenali. Pastikan ada baris header dengan kolom "No" dan "Nama Siswa".');
+  }
+
+  let curHari='', curTgl=null, curWaktu='';
+  const rows = [];
+  for(let i=headerRowIdx+1; i<data.length; i++){
+    const row = data[i];
+    if(!row) continue;
+    const no = row[colMap.no];
+    if(typeof no !== 'number') continue; // lewati baris kosong/footer
+    const hari = row[colMap.hari] || curHari;
+    const tglRaw = (colMap.tanggal!=null && row[colMap.tanggal] != null) ? row[colMap.tanggal] : curTgl;
+    const waktu = row[colMap.waktu] || curWaktu;
+    curHari = hari; curTgl = tglRaw; curWaktu = waktu;
+    const nama = row[colMap.nama];
+    if(!nama) continue;
+    const {iso, text} = parseTanggalIndo(tglRaw);
+    rows.push({
+      no, hari, tanggal: iso, tanggalText: text, waktu,
+      nama: String(nama).trim(), kelas: row[colMap.kelas] || '',
+      interviewer: cleanName(row[colMap.interviewer]),
+      cadangan: cleanName(row[colMap.cadangan]),
+    });
+  }
+  return rows;
+}
+
+async function handleImportJadwal(){
+  const periode = document.getElementById('jadwal-import-periode').value.trim();
+  const fileInput = document.getElementById('jadwal-import-file');
+  const file = fileInput.files && fileInput.files[0];
+  if(!periode){ showToast('Isi label periode dulu.'); return; }
+  if(!file){ showToast('Pilih file Excel dulu.'); return; }
+
+  const btn = document.getElementById('btn-import-jadwal');
+  const oldText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Mengimpor...';
+
+  try{
+    const buf = await file.arrayBuffer();
+    const workbook = XLSX.read(buf, {type:'array', cellDates:true});
+    const rows = parseJadwalWorkbook(workbook);
+    if(rows.length === 0) throw new Error('Tidak ada baris data yang berhasil dibaca dari file ini.');
+    await apiPost({action:'importJadwal', periode, rows});
+    cachedJadwal = null;
+    showToast(`Berhasil import ${rows.length} jadwal untuk periode "${periode}".`);
+    document.getElementById('jadwal-import-file').value = '';
+    await renderJadwal();
+  }catch(e){
+    showToast('Gagal import: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = oldText;
+  }
+}
+
+async function handleDeleteJadwalPeriode(){
+  const periode = document.getElementById('jadwal-filter-periode').value;
+  if(!periode){ showToast('Pilih dulu periode yang mau dihapus lewat filter periode di atas.'); return; }
+  if(!confirm(`Hapus SEMUA jadwal periode "${periode}"? Data wawancara yang sudah tersimpan di tab Rekap/Detail tidak akan terhapus.`)) return;
+  try{
+    await apiPost({action:'deleteJadwalPeriode', periode});
+    cachedJadwal = null;
+    showToast(`Jadwal periode "${periode}" dihapus.`);
+    await renderJadwal();
+  }catch(e){
+    showToast('Gagal menghapus: ' + e.message);
+  }
+}
+
 document.getElementById('jadwal-search-box').addEventListener('input', renderJadwalList);
 document.getElementById('jadwal-filter-kelas').addEventListener('change', renderJadwalList);
 document.getElementById('jadwal-filter-status').addEventListener('change', renderJadwalList);
+document.getElementById('jadwal-filter-periode').addEventListener('change', renderJadwalList);
+document.getElementById('btn-import-jadwal').addEventListener('click', handleImportJadwal);
+document.getElementById('btn-delete-periode').addEventListener('click', handleDeleteJadwalPeriode);
 
 function switchView(name){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
